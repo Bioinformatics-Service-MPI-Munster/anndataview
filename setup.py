@@ -26,6 +26,7 @@ setup(
     name='anndataview',
     version=__version__,
     description='Extension of the AnnData object for annotated views.',
+    python_requires='>3.7.0',
     setup_requires=[
         'setuptools>=18.0',
     ],
@@ -35,6 +36,7 @@ setup(
         'numpy>=1.16.0',
         'pandas>=0.15.0',
         'anndata',
+        'future',
     ],
     cmdclass={
         'clean': CleanCommand
