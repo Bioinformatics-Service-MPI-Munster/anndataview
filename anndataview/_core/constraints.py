@@ -71,3 +71,73 @@ class DataFrameConstraint(object):
         """
         return annotations.loc[self.valid(annotations), :]
 
+
+class CategoricalDataFrameConstraint(DataFrameConstraint):
+    """\
+    A constraint on pandas DataFrame categorical dtype columns.
+    
+    Parameters
+    ----------
+    key
+        A column name denoting a categorical dtype column
+    categories
+        A list or tuple of strings with category 
+    
+    See Also
+    --------
+    DataFrameConstraint
+    
+    Notes
+    -----
+    
+    """
+    
+    __name__ = 'CategoricalDataFrameConstraint'
+    
+    def __init__(
+        self, 
+        key: str, 
+        categories: Optional[Union[list, tuple, str]] = None
+    ) -> None:
+        if isinstance(categories, string_types):
+            categories = [categories]
+        self.key = key
+        self.categories = categories
+        
+    def __repr__(self) -> str:
+        categories = ", ".join(self.categories)
+        return f"{self.__class__.__qualname__} on key '{self.key}' with categories '{categories}'"
+    
+    @classmethod
+    def from_dict(cls, constraint_dict: dict) -> CategoricalDataFrameConstraint:
+        return cls(
+            key=constraint_dict.get('key'),
+            categories=constraint_dict.get('categories', None),
+        )
+    
+    def _to_dict(self) -> dict:
+        return {
+            'key': self.key,
+            'categories': self.categories,
+        }
+    
+    def valid(self, annotations: pd.DataFrame) -> np.array:
+        column_data = annotations[self.key]
+        
+        if column_data.dtype.name != 'category':
+            raise ValueError(f"Subsetting currently only works on "
+                             f"categorical groups, not {column_data.dtype.name}!")
+
+        categories = self.categories
+        column_categories = column_data.dtype.categories.to_list()
+        if categories is None:
+            categories = column_categories
+        
+        # check category consistency
+        for category in categories:
+            if category not in categories:
+                warnings.warn(f"Category '{category}' not found in column categories ({column_categories})!")
+        
+        return column_data.isin(categories).to_numpy()
+
+
