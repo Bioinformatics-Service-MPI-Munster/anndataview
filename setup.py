@@ -35,8 +35,10 @@ setup(
     install_requires=[
         'numpy>=1.16.0',
         'pandas>=0.15.0',
-        'anndata',
+        'anndata>=0.8.0',
         'future',
+        'deepdiff',
+        'h5py',
     ],
     cmdclass={
         'clean': CleanCommand
