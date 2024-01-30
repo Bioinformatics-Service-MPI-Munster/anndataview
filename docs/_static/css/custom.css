@@ -1,0 +1,15 @@
+div.jupyter_container {
+    border: none !important;
+    box-shadow: unset !important;
+}
+
+.jupyter_container div.code_cell {
+    border-radius: .4em !important;
+    padding: 6px !important;
+    background-color: #FAFAFA !important;
+    box-shadow: 1px 1px 1px #d8d8d8 !important;
+}
+
+div.jupyter_container div.highlight {
+    background-color: #FAFAFA !important;
+  }
