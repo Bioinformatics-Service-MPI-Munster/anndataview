@@ -6,9 +6,7 @@ def read_h5ad(*args, **kwargs) -> AnnDataView:
     """\
     Read AnnData file from .h5ad and explicitly convert to AnnDataView.
     """
-    vdata = _read_h5ad(*args, **kwargs)
-    vdata.__class__ = AnnDataView
-    vdata._init()
-    return vdata
+    adata = _read_h5ad(*args, **kwargs)
+    return AnnDataView(adata)
 
 
