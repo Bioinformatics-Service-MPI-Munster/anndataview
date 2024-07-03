@@ -33,7 +33,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'numpy>=1.16.0',
+        'numpy>=1.16.0,<2.0.0',
         'pandas>=0.15.0',
         'anndata>=0.8.0',
         'future',
