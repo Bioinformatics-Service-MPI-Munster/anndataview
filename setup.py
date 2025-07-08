@@ -26,14 +26,14 @@ setup(
     name='anndataview',
     version=__version__,
     description='Extension of the AnnData object for annotated views.',
-    python_requires='>3.7.0',
+    python_requires='>3.10.0',
     setup_requires=[
         'setuptools>=18.0',
     ],
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'numpy>=1.16.0,<2.0.0',
+        'numpy>=1.16.0',
         'pandas>=0.15.0',
         'anndata>=0.8.0',
         'future',
