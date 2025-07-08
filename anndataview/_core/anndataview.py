@@ -491,7 +491,7 @@ class AnnDataView(object):
         
         return parent_ixs, view_ixs
     
-    def _add_view_m(self, vdata, axis, key, matrix_type='m'):
+    def _add_view_m(self, vdata, axis, key, matrix_type='m', **kwargs):
         self._assert_view_index_compatible(vdata, axis=axis)
         annotation_key = 'obs' if axis == 0 else 'var'
         
@@ -517,28 +517,41 @@ class AnnDataView(object):
             else:
                 parent_m = parent_mm[m_key]
             
-            m = self._diff_matrix(view_m, view_ixs, parent_m, parent_ixs, 
-                                  shape=(n_rows, view_m.shape[1] if matrix_type == 'm' else n_rows))
+            m = self._diff_matrix(
+                view_m, view_ixs, 
+                parent_m, 
+                parent_ixs, 
+                shape=(n_rows, view_m.shape[1] if matrix_type == 'm' else n_rows),
+                **kwargs
+            )
             if m is not None:
                 parent_mm[f'__view__{key}__{m_key}'] = m
         
-    def add_view_obsm(self, vdata, key):
+    def add_view_obsm(self, vdata, key, **kwargs):
         self._assert_view_index_compatible(vdata, axis=0)
-        self._add_view_m(vdata, axis=0, key=key, matrix_type='m')
+        self._add_view_m(vdata, axis=0, key=key, matrix_type='m', **kwargs)
     
-    def add_view_varm(self, vdata, key):
+    def add_view_varm(self, vdata, key, **kwargs):
         self._assert_view_index_compatible(vdata, axis=1)
-        self._add_view_m(vdata, axis=1, key=key, matrix_type='m')
+        self._add_view_m(vdata, axis=1, key=key, matrix_type='m', **kwargs)
     
-    def add_view_obsp(self, vdata, key):
+    def add_view_obsp(self, vdata, key, **kwargs):
         self._assert_view_index_compatible(vdata, axis=0)
-        self._add_view_m(vdata, axis=0, key=key, matrix_type='p')
+        self._add_view_m(vdata, axis=0, key=key, matrix_type='p', **kwargs)
     
-    def add_view_varp(self, vdata, key):
+    def add_view_varp(self, vdata, key, **kwargs):
         self._assert_view_index_compatible(vdata, axis=1)
-        self._add_view_m(vdata, axis=1, key=key, matrix_type='p')
-        
-    def _diff_matrix(self, view_matrix, view_ixs, parent_matrix, parent_ixs, shape):
+        self._add_view_m(vdata, axis=1, key=key, matrix_type='p', **kwargs)
+    
+    def _diff_matrix(
+        self, 
+        view_matrix, 
+        view_ixs, 
+        parent_matrix, 
+        parent_ixs, 
+        shape,
+        force_full_matrix=False
+    ):
         view_matrix_sub = view_matrix[view_ixs]
         
         diff = False
@@ -559,9 +572,17 @@ class AnnDataView(object):
         
         if diff:
             if sparse:
-                m = np.full(shape, 0, dtype=view_matrix_sub.dtype)
-                m[parent_ixs] = view_matrix_sub.toarray()
-                m = scipy.sparse.csr_matrix(m)
+                # brief memory calculation
+                mem = np.full((1, 1), 0, dtype=view_matrix_sub.dtype).itemsize * view_matrix_sub.shape[0] * view_matrix_sub.shape[1]
+                
+                if force_full_matrix or mem < 8589934592:  # > 8Gb
+                    m = np.full(shape, 0, dtype=view_matrix_sub.dtype)
+                    m[parent_ixs] = view_matrix_sub.toarray()
+                    m = scipy.sparse.csr_matrix(m)
+                else:
+                    m = scipy.sparse.dok_matrix(shape, dtype=view_matrix_sub.dtype)
+                    m[parent_ixs] = view_matrix_sub
+                    m = m.tocsr()
             else:
                 m = np.full(shape, np.nan, dtype=view_matrix_sub.dtype)
                 m[parent_ixs] = view_matrix_sub
@@ -634,10 +655,10 @@ class AnnDataView(object):
         ignore_obs_differences=False,
         ignore_var_differences=False,
     ):
-        if not '__view__' in self._parent_adata.uns.keys():
+        if '__view__' not in self._parent_adata.uns.keys():
             self._parent_adata.uns['__view__'] = {}
         
-        if not key in self._parent_adata.uns['__view__']:
+        if key not in self._parent_adata.uns['__view__']:
             self._parent_adata.uns['__view__'][key] = {
                 'key': key, 
                 'name': key,
@@ -647,7 +668,7 @@ class AnnDataView(object):
         # check if we need to add an index constraint for consistency
         try:
             obs_constraints = vdata.obs_constraints.copy()
-        except AttributeError as e:
+        except AttributeError:
             obs_constraints = []
         
         try:
@@ -658,8 +679,6 @@ class AnnDataView(object):
         tmp_vdata = AnnDataView(self._parent_adata, obs_constraints, var_constraints)
         
         if not ignore_obs_differences and not np.array_equal(tmp_vdata.obs.index, vdata.obs.index):
-            print(obs_constraints)
-            print(key)
             obs_constraints.append(IndexDataFrameConstraint(vdata.obs.index.to_numpy()))
             
         if not ignore_var_differences and not np.array_equal(tmp_vdata.var.index, vdata.var.index):
@@ -716,7 +735,7 @@ class AnnDataView(object):
         self.add_view_varm(vdata, key)
         self.add_view_obsp(vdata, key)
         self.add_view_varp(vdata, key)
-        
+    
     def copy(self, only_constraints=False):
         if not only_constraints:
             adata = self._parent_adata.copy()
