@@ -457,18 +457,34 @@ class AnnDataView(object):
         for column in view_df.columns:
             if column.startswith('__'):
                 continue
-            if (column not in parent_df_subset or 
+            if (
+                column not in parent_df_subset or 
                 not parent_df_subset[column].astype('object')
-                    .equals(view_df[column].astype('object'))):
+                    .equals(view_df[column].astype('object'))
+            ):
                 diff_columns.append(column)
                 
         for diff_column in diff_columns:
             column_name = f'__view__{key}__{diff_column}'
             if pd.api.types.is_numeric_dtype(view_df[diff_column]):
                 parent_df[column_name] = np.nan
+                parent_df.loc[view_df.index, column_name] = view_df[diff_column]
+                parent_df[column_name] = parent_df[column_name].astype(
+                    view_df[diff_column].dtype
+                )
             else:
                 parent_df[column_name] = 'NA'
-            parent_df.loc[view_df.index, column_name] = view_df[diff_column]
+                parent_df.loc[view_df.index, column_name] = view_df[diff_column]
+
+                if pd.api.types.is_categorical_dtype(view_df[diff_column]):
+                    categories = view_df[diff_column].cat.categories.to_list()
+                    if 'NA' not in categories and parent_df.shape[0] != view_df.shape[0]:
+                        categories.append('NA')
+
+                    parent_df[column_name] = pd.Categorical(
+                        parent_df[column_name],
+                        categories=categories,
+                    )
     
     def add_view_obs(self, vdata, key):
         self._assert_view_index_compatible(vdata, axis=0)
