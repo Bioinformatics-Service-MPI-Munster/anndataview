@@ -763,6 +763,58 @@ class AnnDataView(object):
             obs_constraints=deepcopy(self.obs_constraints),
             var_constraints=deepcopy(self.var_constraints),
         )
+    
+    def drop_views(
+        self,
+        copy=True,
+    ):
+        if copy:
+            adata = self._parent_adata.copy()
+        else:
+            adata = self._parent_adata
+        
+        prefix = '__view__'
+
+        # obs
+        adata.obs = adata.obs.drop(
+            [
+                col for col in adata.obs.columns if col.startswith(prefix)
+            ],
+            axis=1
+        )
+
+        # var
+        adata.var = adata.var.drop(
+            [
+                col for col in adata.var.columns if col.startswith(prefix)
+            ],
+            axis=1
+        )
+
+        for slot in [
+            'obsm', 'varm', 'obsp', 
+            'varp', 'layers',
+        ]:
+            if hasattr(adata, slot):
+                keys = list(getattr(adata, slot).keys())
+
+                for key in keys:
+                    if key.startswith(prefix):
+                        del getattr(adata, slot)[key]
+
+        if hasattr(adata, 'uns'):
+            def remove_view_keys(d):
+                d_new = dict()
+                for k, v in d.items():
+                    if k.startswith(prefix):
+                        continue
+                    if isinstance(v, dict):
+                        v = remove_view_keys(v)
+                    d_new[k] = v
+                return d_new
+            
+            adata.uns = remove_view_keys(adata.uns)
+        return adata
 
 
 for name, (constraint_class, axis) in Constraint.plugin_methods.items():
